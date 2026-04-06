@@ -22,7 +22,7 @@ const EyeOffIcon = () => (
 const LoginPage = () => {
   const [formData, setFormData] = useState({
     email: 'Test@test.com',
-    password: 'test@1234567',
+    password: 'test@12345',
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
@@ -30,7 +30,7 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   const VALID_EMAIL = 'Test@test.com';
-  const VALID_PASSWORD = 'test@1234567';
+  const VALID_PASSWORD = 'test@12345';
 
   const validate = () => {
     const newErrors = {};
@@ -80,7 +80,7 @@ const LoginPage = () => {
         userEmail={formData.email}
         onLogout={() => {
           setLoginSuccess(false);
-          setFormData({ email: 'Test@test.com', password: 'test@1234567' });
+          setFormData({ email: 'Test@test.com', password: 'test@12345' });
           setErrors({});
           setShowPassword(false);
         }}
