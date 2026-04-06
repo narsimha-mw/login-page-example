@@ -154,6 +154,10 @@
 .data-table tbody tr:last-child td { border-bottom: none; }
 .data-table tbody tr:hover td { background: #f8fafc; }
 
+.td-products { max-width: 220px; }
+.product-tag { display: inline-block; background: #eff6ff; color: #3b82f6; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px; margin: 2px 3px 2px 0; white-space: nowrap; }
+.text-muted { color: #94a3b8; font-size: 13px; }
+
 .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: capitalize; }
 .status-badge.delivered, .status-badge.paid, .status-badge.success { background: #dcfce7; color: #16a34a; }
 .status-badge.shipped { background: #dbeafe; color: #2563eb; }

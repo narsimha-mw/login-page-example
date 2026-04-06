@@ -552,13 +552,21 @@ function OrdersTab({ orders, onDownload, onPay }) {
       <div className="table-wrapper">
         <table className="data-table">
           <thead>
-            <tr><th>Order ID</th><th>Date</th><th>Items</th><th>Total</th><th>Status</th><th>Action</th></tr>
+            <tr><th>Order ID</th><th>Date</th><th>Products</th><th>Items</th><th>Total</th><th>Status</th><th>Action</th></tr>
           </thead>
           <tbody>
             {orders.map(o => (
               <tr key={o.id}>
                 <td><strong>{o.id}</strong></td>
                 <td>{o.date}</td>
+                <td className="td-products">
+                  {o.cart && o.cart.length > 0
+                    ? o.cart.map(c => (
+                        <span key={c.id} className="product-tag">{c.name} ×{c.qty}</span>
+                      ))
+                    : <span className="text-muted">—</span>
+                  }
+                </td>
                 <td>{o.items}</td>
                 <td>₹{o.total.toFixed(2)}</td>
                 <td><span className={`status-badge ${o.status.toLowerCase().replace(' ', '-')}`}>{o.status}</span></td>
