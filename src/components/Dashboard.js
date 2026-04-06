@@ -35,6 +35,7 @@ export default function Dashboard({ userEmail, onLogout }) {
   // Payment modal
   const [paymentModal, setPaymentModal] = useState({ open: false, order: null, method: '' });
   const [paySuccess, setPaySuccess] = useState(false);
+  const [cancelConfirm, setCancelConfirm] = useState(null); // order object
 
   // Bulk upload
   const [bulkError, setBulkError] = useState('');
@@ -108,6 +109,26 @@ export default function Dashboard({ userEmail, onLogout }) {
     }
     setPaymentModal({ open: false, order: null, method: '' });
     setPaySuccess(false);
+  };
+
+  // ---------- Cancel Order ----------
+  const handleCancelOrder = (order) => {
+    const today = new Date().toISOString().split('T')[0];
+    setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'Cancelled' } : o));
+    // If already paid, mark related invoice as Refunded
+    if (order.status === 'Delivered' || order.status === 'Shipped' || order.status === 'Processing') {
+      setInvoices(prev => prev.map(inv =>
+        inv.orderId === order.id ? { ...inv, status: 'Refunded' } : inv
+      ));
+      setPayments(prev => [...prev, {
+        id: `PAY-${String(payments.length + 1).padStart(3, '0')}`,
+        date: today,
+        method: 'Refund',
+        amount: order.total,
+        status: 'Refunded',
+      }]);
+    }
+    setCancelConfirm(null);
   };
 
   // ---------- Product CRUD ----------
@@ -320,7 +341,7 @@ export default function Dashboard({ userEmail, onLogout }) {
               bulkError={bulkError}
             />
           )}
-          {activeTab === 'Orders' && <OrdersTab orders={orders} onDownload={downloadOrdersExcel} onPay={openPayment} />}
+          {activeTab === 'Orders' && <OrdersTab orders={orders} onDownload={downloadOrdersExcel} onPay={openPayment} onCancel={setCancelConfirm} />}
           {activeTab === 'Invoices' && <InvoicesTab invoices={invoices} onDownload={downloadInvoicePDF} />}
           {activeTab === 'Payments' && <PaymentsTab payments={payments} />}
         </div>
@@ -398,6 +419,28 @@ export default function Dashboard({ userEmail, onLogout }) {
             <div className="modal-actions modal-actions-center">
               <button className="btn-secondary" onClick={() => setDeleteConfirm(null)}>Cancel</button>
               <button className="btn-danger" onClick={() => handleDelete(deleteConfirm)}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Order Confirm */}
+      {cancelConfirm && (
+        <div className="modal-overlay" onClick={() => setCancelConfirm(null)}>
+          <div className="modal modal-sm" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Cancel Order</h2>
+              <button className="modal-close" onClick={() => setCancelConfirm(null)}>&#x2715;</button>
+            </div>
+            <p className="delete-msg">
+              Cancel order <strong>{cancelConfirm.id}</strong>?
+              {(cancelConfirm.status === 'Delivered' || cancelConfirm.status === 'Shipped' || cancelConfirm.status === 'Processing') &&
+                <span className="refund-note"> A refund of <strong>₹{cancelConfirm.total.toFixed(2)}</strong> will be initiated.</span>
+              }
+            </p>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setCancelConfirm(null)}>Keep Order</button>
+              <button className="btn-danger" onClick={() => handleCancelOrder(cancelConfirm)}>Cancel Order</button>
             </div>
           </div>
         </div>
@@ -542,7 +585,8 @@ function ProductsTab({ products, onAdd, onEdit, onView, onDelete, onAddToCart, o
   );
 }
 
-function OrdersTab({ orders, onDownload, onPay }) {
+function OrdersTab({ orders, onDownload, onPay, onCancel }) {
+  const cancellable = ['Pending Payment', 'Processing', 'Shipped', 'Delivered'];
   return (
     <div>
       <div className="section-toolbar">
@@ -571,9 +615,14 @@ function OrdersTab({ orders, onDownload, onPay }) {
                 <td>₹{o.total.toFixed(2)}</td>
                 <td><span className={`status-badge ${o.status.toLowerCase().replace(' ', '-')}`}>{o.status}</span></td>
                 <td>
-                  {o.status === 'Pending Payment' && (
-                    <button className="btn-pay-cta" onClick={() => onPay(o)}>💳 Pay Now</button>
-                  )}
+                  <div className="action-btns">
+                    {o.status === 'Pending Payment' && (
+                      <button className="btn-pay-cta" onClick={() => onPay(o)}>💳 Pay Now</button>
+                    )}
+                    {cancellable.includes(o.status) && (
+                      <button className="btn-cancel-order" onClick={() => onCancel(o)}>✕ Cancel</button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

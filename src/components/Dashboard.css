@@ -163,6 +163,13 @@
 .status-badge.shipped { background: #dbeafe; color: #2563eb; }
 .status-badge.processing, .status-badge.pending { background: #fef9c3; color: #ca8a04; }
 .status-badge.pending-payment { background: #ffedd5; color: #ea580c; }
+.status-badge.cancelled { background: #fee2e2; color: #dc2626; }
+.status-badge.refunded { background: #f3e8ff; color: #7c3aed; }
+
+.btn-cancel-order { padding: 6px 12px; border-radius: 8px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; background: #fff1f2; color: #e11d48; transition: background 0.15s; white-space: nowrap; }
+.btn-cancel-order:hover { background: #ffe4e6; }
+
+.refund-note { display: block; margin-top: 6px; color: #7c3aed; font-size: 13px; }
 
 /* ===== Cart ===== */
 .cart-area { position: relative; }
