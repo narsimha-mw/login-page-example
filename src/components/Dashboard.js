@@ -1,41 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import jsPDF from 'jspdf';
+import * as XLSX from 'xlsx';
 import './Dashboard.css';
+import {
+  PRODUCT_VISUALS, INITIAL_PRODUCTS, SAMPLE_ORDERS,
+  SAMPLE_INVOICES, SAMPLE_PAYMENTS, TABS, EMPTY_FORM,
+} from './data';
 
-const INITIAL_PRODUCTS = [
-  { id: 1, name: 'Wireless Headphones', quantity: 50, stock: 35, price: 79.99, description: 'Over-ear noise cancelling wireless headphones with 30hr battery life.' },
-  { id: 2, name: 'Mechanical Keyboard', quantity: 30, stock: 18, price: 129.99, description: 'TKL mechanical keyboard with RGB backlight and blue switches.' },
-  { id: 3, name: 'USB-C Hub', quantity: 100, stock: 72, price: 39.99, description: '7-in-1 USB-C hub with HDMI, USB 3.0, SD card reader and PD charging.' },
-  { id: 4, name: 'Webcam 4K', quantity: 40, stock: 12, price: 149.99, description: '4K autofocus webcam with built-in dual mic and privacy cover.' },
-  { id: 5, name: 'Desk Lamp LED', quantity: 60, stock: 45, price: 29.99, description: 'Touch-control LED desk lamp with 5 brightness levels and USB charging port.' },
-  { id: 6, name: 'Laptop Stand', quantity: 80, stock: 55, price: 49.99, description: 'Adjustable aluminium laptop stand compatible with 10-17 inch laptops.' },
-  { id: 7, name: 'Wireless Mouse', quantity: 90, stock: 67, price: 24.99, description: 'Ergonomic silent wireless mouse with 12-month battery life.' },
-  { id: 8, name: 'Monitor 27"', quantity: 20, stock: 8, price: 349.99, description: '27-inch QHD IPS monitor with 144Hz refresh rate and AMD FreeSync.' },
-  { id: 9, name: 'Cable Management Kit', quantity: 200, stock: 180, price: 14.99, description: 'Velcro cable ties, clips and sleeves for a clean desk setup.' },
-  { id: 10, name: 'Portable SSD 1TB', quantity: 45, stock: 30, price: 99.99, description: 'USB 3.2 Gen2 portable SSD with up to 1050MB/s read speed.' },
-];
-
-const SAMPLE_ORDERS = [
-  { id: 'ORD-001', date: '2026-03-15', items: 3, total: 259.97, status: 'Delivered' },
-  { id: 'ORD-002', date: '2026-03-28', items: 1, total: 149.99, status: 'Shipped' },
-  { id: 'ORD-003', date: '2026-04-01', items: 2, total: 79.98, status: 'Processing' },
-];
-
-const SAMPLE_INVOICES = [
-  { id: 'INV-2026-001', date: '2026-03-15', amount: 259.97, status: 'Paid' },
-  { id: 'INV-2026-002', date: '2026-03-28', amount: 149.99, status: 'Paid' },
-  { id: 'INV-2026-003', date: '2026-04-01', amount: 79.98, status: 'Pending' },
-];
-
-const SAMPLE_PAYMENTS = [
-  { id: 'PAY-001', date: '2026-03-15', method: 'Visa •••• 4242', amount: 259.97, status: 'Success' },
-  { id: 'PAY-002', date: '2026-03-28', method: 'PayPal', amount: 149.99, status: 'Success' },
-  { id: 'PAY-003', date: '2026-04-01', method: 'Mastercard •••• 1234', amount: 79.98, status: 'Pending' },
-];
-
-const TABS = ['Profile', 'Products', 'Orders', 'Invoices', 'Payments'];
-const EMPTY_FORM = { name: '', quantity: '', stock: '', price: '', description: '' };
-
-// Cart SVG icon
 const CartIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -51,11 +22,10 @@ export default function Dashboard({ userEmail, onLogout }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState({});
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [cart, setCart] = useState([]);           // [{...product, qty}]
+  const [cart, setCart] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
-
-  const username = userEmail.split('@')[0];
-  const domain = '@' + userEmail.split('@')[1];
+  const [bulkError, setBulkError] = useState('');
+  const fileInputRef = useRef(null);
 
   // ---------- Cart ----------
   const addToCart = (product) => {
@@ -65,9 +35,7 @@ export default function Dashboard({ userEmail, onLogout }) {
       return [...prev, { ...product, qty: 1 }];
     });
   };
-
   const removeFromCart = (id) => setCart(prev => prev.filter(c => c.id !== id));
-
   const cartTotal = cart.reduce((sum, c) => sum + c.price * c.qty, 0);
   const cartCount = cart.reduce((sum, c) => sum + c.qty, 0);
 
@@ -116,13 +84,102 @@ export default function Dashboard({ userEmail, onLogout }) {
     if (formErrors[name]) setFormErrors(prev => ({ ...prev, [name]: '' }));
   };
 
+  // ---------- Bulk Upload ----------
+  const handleBulkUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setBulkError('');
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const wb = XLSX.read(evt.target.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        const required = ['name', 'quantity', 'stock', 'price', 'description'];
+        if (rows.length === 0) { setBulkError('File is empty.'); return; }
+        const keys = Object.keys(rows[0]).map(k => k.toLowerCase());
+        const missing = required.filter(r => !keys.includes(r));
+        if (missing.length > 0) { setBulkError(`Missing columns: ${missing.join(', ')}`); return; }
+        const newProducts = rows.map(row => ({
+          id: Date.now() + Math.random(),
+          name: String(row.name || row.Name).trim(),
+          quantity: Number(row.quantity || row.Quantity) || 0,
+          stock: Number(row.stock || row.Stock) || 0,
+          price: parseFloat(row.price || row.Price) || 0,
+          description: String(row.description || row.Description).trim(),
+        })).filter(p => p.name);
+        setProducts(prev => [...prev, ...newProducts]);
+      } catch {
+        setBulkError('Failed to parse file. Use CSV or Excel with columns: name, quantity, stock, price, description');
+      }
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = '';
+  };
+
+  // ---------- Download Orders Excel ----------
+  const downloadOrdersExcel = () => {
+    const data = SAMPLE_ORDERS.map(o => ({
+      'Order ID': o.id, 'Date': o.date, 'Items': o.items,
+      'Total (₹)': o.total.toFixed(2), 'Status': o.status,
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Orders');
+    XLSX.writeFile(wb, 'orders.xlsx');
+  };
+
+  // ---------- Download Invoice PDF ----------
+  const downloadInvoicePDF = (inv) => {
+    const doc = new jsPDF();
+    doc.setFontSize(20);
+    doc.setTextColor(102, 126, 234);
+    doc.text('E-App', 20, 20);
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(16);
+    doc.text('INVOICE', 160, 20);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text('E-App Pvt Ltd', 20, 32);
+    doc.text('Bangalore, India', 20, 38);
+    doc.text('+91 1234567890', 20, 44);
+    doc.setDrawColor(200);
+    doc.line(20, 50, 190, 50);
+    doc.setFontSize(11);
+    doc.setTextColor(0);
+    doc.text(`Invoice ID: ${inv.id}`, 20, 60);
+    doc.text(`Date: ${inv.date}`, 20, 68);
+    doc.text(`Status: ${inv.status}`, 20, 76);
+    doc.setFontSize(12);
+    doc.setFillColor(240, 240, 255);
+    doc.rect(20, 88, 170, 10, 'F');
+    doc.setTextColor(50);
+    doc.text('Description', 25, 95);
+    doc.text('Amount', 160, 95);
+    doc.setTextColor(0);
+    doc.setFontSize(11);
+    doc.text('Services / Products', 25, 110);
+    doc.text(`Rs. ${inv.amount.toFixed(2)}`, 155, 110);
+    doc.setDrawColor(200);
+    doc.line(20, 118, 190, 118);
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text('Total:', 130, 128);
+    doc.text(`Rs. ${inv.amount.toFixed(2)}`, 155, 128);
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(150);
+    doc.text('Thank you for your business!', 20, 270);
+    doc.save(`${inv.id}.pdf`);
+  };
+
   return (
     <div className="dashboard-wrapper">
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-logo">
           <span className="sidebar-icon">&#128274;</span>
-          <span className="sidebar-brand">E MyApp</span>
+          <span className="sidebar-brand">E-App</span>
         </div>
         <nav className="sidebar-nav">
           {TABS.map(tab => (
@@ -140,13 +197,7 @@ export default function Dashboard({ userEmail, onLogout }) {
       {/* Main */}
       <main className="dashboard-main">
         <header className="dash-header">
-          <div>
-            <h1 className="dash-title">{activeTab}</h1>
-            <p className="dash-subtitle">
-              <strong className="header-username">{username}</strong>
-              <span className="header-domain">{domain}</span>
-            </p>
-          </div>
+          <h1 className="dash-title">{activeTab}</h1>
 
           {/* Cart Icon */}
           <div className="cart-area">
@@ -154,8 +205,6 @@ export default function Dashboard({ userEmail, onLogout }) {
               <CartIcon />
               {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
             </button>
-
-            {/* Cart Dropdown */}
             {cartOpen && (
               <div className="cart-dropdown">
                 <div className="cart-dropdown-header">
@@ -173,7 +222,7 @@ export default function Dashboard({ userEmail, onLogout }) {
                             <span className="cart-item-name">{c.name}</span>
                             <span className="cart-item-meta">Qty: {c.qty} &nbsp;|&nbsp; ₹{(c.price * c.qty).toFixed(2)}</span>
                           </div>
-                          <button className="cart-remove" onClick={() => removeFromCart(c.id)} title="Remove">&#x2715;</button>
+                          <button className="cart-remove" onClick={() => removeFromCart(c.id)}>&#x2715;</button>
                         </li>
                       ))}
                     </ul>
@@ -191,14 +240,26 @@ export default function Dashboard({ userEmail, onLogout }) {
         <div className="dash-content">
           {activeTab === 'Profile' && <ProfileTab email={userEmail} />}
           {activeTab === 'Products' && (
-            <ProductsTab products={products} onAdd={openAdd} onEdit={openEdit} onView={openView}
-              onDelete={(id) => setDeleteConfirm(id)} onAddToCart={addToCart} />
+            <ProductsTab
+              products={products}
+              visuals={PRODUCT_VISUALS}
+              onAdd={openAdd}
+              onEdit={openEdit}
+              onView={openView}
+              onDelete={(id) => setDeleteConfirm(id)}
+              onAddToCart={addToCart}
+              onBulkUpload={() => fileInputRef.current.click()}
+              bulkError={bulkError}
+            />
           )}
-          {activeTab === 'Orders' && <OrdersTab orders={SAMPLE_ORDERS} />}
-          {activeTab === 'Invoices' && <InvoicesTab invoices={SAMPLE_INVOICES} />}
+          {activeTab === 'Orders' && <OrdersTab orders={SAMPLE_ORDERS} onDownload={downloadOrdersExcel} />}
+          {activeTab === 'Invoices' && <InvoicesTab invoices={SAMPLE_INVOICES} onDownload={downloadInvoicePDF} />}
           {activeTab === 'Payments' && <PaymentsTab payments={SAMPLE_PAYMENTS} />}
         </div>
       </main>
+
+      {/* Hidden bulk file input */}
+      <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" style={{ display: 'none' }} onChange={handleBulkUpload} />
 
       {/* Product Modal */}
       {modalState.open && (
@@ -300,38 +361,78 @@ function ProfileTab({ email }) {
   );
 }
 
-function ProductsTab({ products, onAdd, onEdit, onView, onDelete, onAddToCart }) {
+function ProductsTab({ products, visuals, onAdd, onEdit, onView, onDelete, onAddToCart, onBulkUpload, bulkError }) {
+  const getVisual = (id, index) => visuals[index % visuals.length];
+
   return (
     <div>
       <div className="section-toolbar">
         <span className="section-count">{products.length} Products</span>
-        <button className="btn-primary-sm" onClick={onAdd}>+ Add Product</button>
+        <div className="toolbar-actions">
+          <button className="btn-outline" onClick={onBulkUpload}>⬆ Bulk Upload</button>
+          <button className="btn-primary-sm" onClick={onAdd}>+ Add Product</button>
+        </div>
+      </div>
+      {bulkError && <p className="bulk-error">{bulkError}</p>}
+      <div className="product-grid">
+        {products.map((p, i) => {
+          const visual = getVisual(p.id, i);
+          return (
+            <div key={p.id} className="product-card">
+              {/* Cart button top-right overlay */}
+              <button className="card-cart-btn" onClick={() => onAddToCart(p)} title="Add to cart">
+                🛒
+              </button>
+
+              {/* Image area with hover overlay */}
+              <div className="product-img-wrap" style={{ background: visual.bg }}>
+                <span className="product-emoji">{visual.emoji}</span>
+                {/* Hover overlay */}
+                <div className="product-img-overlay">
+                  <p className="overlay-desc">{p.description}</p>
+                  <div className="overlay-meta">
+                    <span>Stock: <strong>{p.stock}</strong></span>
+                    <span>Qty: <strong>{p.quantity}</strong></span>
+                  </div>
+                  <button className="overlay-view-btn" onClick={() => onView(p)}>View Details</button>
+                </div>
+              </div>
+
+              {/* Card body */}
+              <div className="product-card-body">
+                <h3 className="product-card-name">{p.name}</h3>
+                <p className="product-card-price">₹{p.price.toFixed(2)}</p>
+                <div className="product-card-actions">
+                  <button className="btn-edit" onClick={() => onEdit(p)}>Edit</button>
+                  <button className="card-delete-btn" onClick={() => onDelete(p.id)} title="Delete">🗑</button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function OrdersTab({ orders, onDownload }) {
+  return (
+    <div>
+      <div className="section-toolbar">
+        <span className="section-count">{orders.length} Orders</span>
+        <button className="btn-outline" onClick={onDownload}>⬇ Download Excel</button>
       </div>
       <div className="table-wrapper">
         <table className="data-table">
-          <thead>
-            <tr>
-              <th>#</th><th>Name</th><th>Quantity</th><th>Stock</th>
-              <th>Price</th><th>Description</th><th>Actions</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Order ID</th><th>Date</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
           <tbody>
-            {products.map((p, i) => (
-              <tr key={p.id}>
-                <td>{i + 1}</td>
-                <td className="td-name">{p.name}</td>
-                <td>{p.quantity}</td>
-                <td><span className={`stock-badge ${p.stock < 15 ? 'low' : 'ok'}`}>{p.stock}</span></td>
-                <td>₹{p.price.toFixed(2)}</td>
-                <td className="td-desc">{p.description}</td>
-                <td>
-                  <div className="action-btns">
-                    <button className="btn-view" onClick={() => onView(p)}>View</button>
-                    <button className="btn-edit" onClick={() => onEdit(p)}>Edit</button>
-                    <button className="btn-danger-sm" onClick={() => onDelete(p.id)}>Delete</button>
-                    <button className="btn-cart" onClick={() => onAddToCart(p)} title="Add to Cart">🛒</button>
-                  </div>
-                </td>
+            {orders.map(o => (
+              <tr key={o.id}>
+                <td><strong>{o.id}</strong></td>
+                <td>{o.date}</td>
+                <td>{o.items}</td>
+                <td>₹{o.total.toFixed(2)}</td>
+                <td><span className={`status-badge ${o.status.toLowerCase()}`}>{o.status}</span></td>
               </tr>
             ))}
           </tbody>
@@ -341,43 +442,30 @@ function ProductsTab({ products, onAdd, onEdit, onView, onDelete, onAddToCart })
   );
 }
 
-function OrdersTab({ orders }) {
+function InvoicesTab({ invoices, onDownload }) {
   return (
-    <div className="table-wrapper">
-      <table className="data-table">
-        <thead><tr><th>Order ID</th><th>Date</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
-        <tbody>
-          {orders.map(o => (
-            <tr key={o.id}>
-              <td><strong>{o.id}</strong></td>
-              <td>{o.date}</td>
-              <td>{o.items}</td>
-              <td>₹{o.total.toFixed(2)}</td>
-              <td><span className={`status-badge ${o.status.toLowerCase()}`}>{o.status}</span></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function InvoicesTab({ invoices }) {
-  return (
-    <div className="table-wrapper">
-      <table className="data-table">
-        <thead><tr><th>Invoice ID</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
-        <tbody>
-          {invoices.map(inv => (
-            <tr key={inv.id}>
-              <td><strong>{inv.id}</strong></td>
-              <td>{inv.date}</td>
-              <td>₹{inv.amount.toFixed(2)}</td>
-              <td><span className={`status-badge ${inv.status.toLowerCase()}`}>{inv.status}</span></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div>
+      <div className="section-toolbar">
+        <span className="section-count">{invoices.length} Invoices</span>
+      </div>
+      <div className="table-wrapper">
+        <table className="data-table">
+          <thead><tr><th>Invoice ID</th><th>Date</th><th>Amount</th><th>Status</th><th>Download</th></tr></thead>
+          <tbody>
+            {invoices.map(inv => (
+              <tr key={inv.id}>
+                <td><strong>{inv.id}</strong></td>
+                <td>{inv.date}</td>
+                <td>₹{inv.amount.toFixed(2)}</td>
+                <td><span className={`status-badge ${inv.status.toLowerCase()}`}>{inv.status}</span></td>
+                <td>
+                  <button className="btn-outline btn-sm" onClick={() => onDownload(inv)}>⬇ PDF</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
