@@ -341,7 +341,7 @@ export default function Dashboard({ userEmail, onLogout }) {
               bulkError={bulkError}
             />
           )}
-          {activeTab === 'Orders' && <OrdersTab orders={orders} onDownload={downloadOrdersExcel} onPay={openPayment} onCancel={setCancelConfirm} />}
+          {activeTab === 'Orders' && <OrdersTab orders={orders} onDownload={downloadOrdersExcel} onPay={openPayment} />}
           {activeTab === 'Invoices' && <InvoicesTab invoices={invoices} onDownload={downloadInvoicePDF} />}
           {activeTab === 'Payments' && <PaymentsTab payments={payments} />}
         </div>
@@ -585,8 +585,9 @@ function ProductsTab({ products, onAdd, onEdit, onView, onDelete, onAddToCart, o
   );
 }
 
-function OrdersTab({ orders, onDownload, onPay, onCancel }) {
-  const cancellable = ['Pending Payment', 'Processing', 'Shipped', 'Delivered'];
+function OrdersTab({ orders, onDownload, onPay }) {
+  const [skuModal, setSkuModal] = useState(null); // order whose products to show
+
   return (
     <div>
       <div className="section-toolbar">
@@ -599,36 +600,64 @@ function OrdersTab({ orders, onDownload, onPay, onCancel }) {
             <tr><th>Order ID</th><th>Date</th><th>Products</th><th>Items</th><th>Total</th><th>Status</th><th>Action</th></tr>
           </thead>
           <tbody>
-            {orders.map(o => (
-              <tr key={o.id}>
-                <td><strong>{o.id}</strong></td>
-                <td>{o.date}</td>
-                <td className="td-products">
-                  {o.cart && o.cart.length > 0
-                    ? o.cart.map(c => (
-                        <span key={c.id} className="product-tag">{c.name} ×{c.qty}</span>
-                      ))
-                    : <span className="text-muted">—</span>
-                  }
-                </td>
-                <td>{o.items}</td>
-                <td>₹{o.total.toFixed(2)}</td>
-                <td><span className={`status-badge ${o.status.toLowerCase().replace(' ', '-')}`}>{o.status}</span></td>
-                <td>
-                  <div className="action-btns">
+            {orders.map(o => {
+              const cart = o.cart || [];
+              return (
+                <tr key={o.id}>
+                  <td><strong>{o.id}</strong></td>
+                  <td>{o.date}</td>
+                  <td className="td-products">
+                    {cart.length === 0 && <span className="text-muted">—</span>}
+                    {cart.length === 1 && (
+                      <span className="product-tag">{cart[0].name} ×{cart[0].qty}</span>
+                    )}
+                    {cart.length > 1 && (
+                      <div className="sku-cell">
+                        <span className="product-tag">{cart[0].name} ×{cart[0].qty}</span>
+                        <button className="btn-sku-more" onClick={() => setSkuModal(o)}>
+                          +{cart.length - 1} more
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                  <td>{o.items}</td>
+                  <td>₹{o.total.toFixed(2)}</td>
+                  <td><span className={`status-badge ${o.status.toLowerCase().replace(/ /g, '-')}`}>{o.status}</span></td>
+                  <td>
                     {o.status === 'Pending Payment' && (
                       <button className="btn-pay-cta" onClick={() => onPay(o)}>💳 Pay Now</button>
                     )}
-                    {cancellable.includes(o.status) && (
-                      <button className="btn-cancel-order" onClick={() => onCancel(o)}>✕ Cancel</button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
+
+      {/* SKU View Modal */}
+      {skuModal && (
+        <div className="modal-overlay" onClick={() => setSkuModal(null)}>
+          <div className="modal modal-sm" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Products — {skuModal.id}</h2>
+              <button className="modal-close" onClick={() => setSkuModal(null)}>&#x2715;</button>
+            </div>
+            <div className="sku-modal-body">
+              {skuModal.cart.map(c => (
+                <div key={c.id} className="sku-modal-row">
+                  <span className="sku-name">{c.name}</span>
+                  <span className="sku-meta">Qty: {c.qty} &nbsp;|&nbsp; ₹{(c.price * c.qty).toFixed(2)}</span>
+                </div>
+              ))}
+              <div className="sku-modal-total">
+                <span>Total</span>
+                <strong>₹{skuModal.total.toFixed(2)}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
