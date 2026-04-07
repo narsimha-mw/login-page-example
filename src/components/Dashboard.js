@@ -7,6 +7,8 @@ import {
   SAMPLE_PAYMENTS, PAYMENT_OPTIONS, TABS, EMPTY_FORM,
 } from './data';
 
+const finalPrice = (p) => parseFloat((p.price * (1 - (p.discount || 0) / 100)).toFixed(2));
+
 const CartIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -43,14 +45,15 @@ export default function Dashboard({ userEmail, onLogout }) {
 
   // ---------- Cart ----------
   const addToCart = (product) => {
+    const fp = finalPrice(product);
     setCart(prev => {
       const existing = prev.find(c => c.id === product.id);
       if (existing) return prev.map(c => c.id === product.id ? { ...c, qty: c.qty + 1 } : c);
-      return [...prev, { ...product, qty: 1 }];
+      return [...prev, { ...product, cartPrice: fp, qty: 1 }];
     });
   };
   const removeFromCart = (id) => setCart(prev => prev.filter(c => c.id !== id));
-  const cartTotal = cart.reduce((s, c) => s + c.price * c.qty, 0);
+  const cartTotal = cart.reduce((s, c) => s + c.cartPrice * c.qty, 0);
   const cartCount = cart.reduce((s, c) => s + c.qty, 0);
 
   // ---------- Place Order ----------
@@ -134,7 +137,7 @@ export default function Dashboard({ userEmail, onLogout }) {
   // ---------- Product CRUD ----------
   const openAdd = () => { setForm(EMPTY_FORM); setFormErrors({}); setModalState({ open: true, mode: 'add', product: null }); };
   const openEdit = (p) => {
-    setForm({ ...p, quantity: String(p.quantity), stock: String(p.stock), price: String(p.price), image: p.image || '' });
+    setForm({ ...p, quantity: String(p.quantity), stock: String(p.stock), price: String(p.price), discount: String(p.discount || 0), image: p.image || '' });
     setFormErrors({});
     setModalState({ open: true, mode: 'edit', product: p });
   };
@@ -147,6 +150,7 @@ export default function Dashboard({ userEmail, onLogout }) {
     if (!form.quantity || isNaN(form.quantity) || Number(form.quantity) < 0) errors.quantity = 'Valid quantity required';
     if (!form.stock || isNaN(form.stock) || Number(form.stock) < 0) errors.stock = 'Valid stock required';
     if (!form.price || isNaN(form.price) || Number(form.price) <= 0) errors.price = 'Valid price required';
+    if (form.discount === '' || isNaN(form.discount) || Number(form.discount) < 0 || Number(form.discount) > 100) errors.discount = 'Discount must be 0–100%';
     if (!form.description.trim()) errors.description = 'Description is required';
     return errors;
   };
@@ -159,12 +163,13 @@ export default function Dashboard({ userEmail, onLogout }) {
       setProducts(prev => [...prev, {
         id: Date.now(), name: form.name.trim(), quantity: Number(form.quantity),
         stock: Number(form.stock), price: parseFloat(form.price),
+        discount: Number(form.discount) || 0,
         description: form.description.trim(),
         image: form.image.trim() || `https://picsum.photos/seed/prod${idx}/400/300`,
       }]);
     } else {
       setProducts(prev => prev.map(p => p.id === modalState.product.id
-        ? { ...p, name: form.name.trim(), quantity: Number(form.quantity), stock: Number(form.stock), price: parseFloat(form.price), description: form.description.trim(), image: form.image.trim() || p.image }
+        ? { ...p, name: form.name.trim(), quantity: Number(form.quantity), stock: Number(form.stock), price: parseFloat(form.price), discount: Number(form.discount) || 0, description: form.description.trim(), image: form.image.trim() || p.image }
         : p
       ));
     }
@@ -310,7 +315,7 @@ export default function Dashboard({ userEmail, onLogout }) {
                         <li key={c.id} className="cart-item">
                           <div className="cart-item-info">
                             <span className="cart-item-name">{c.name}</span>
-                            <span className="cart-item-meta">Qty: {c.qty} &nbsp;|&nbsp; ₹{(c.price * c.qty).toFixed(2)}</span>
+                            <span className="cart-item-meta">Qty: {c.qty} &nbsp;|&nbsp; ₹{(c.cartPrice * c.qty).toFixed(2)}</span>
                           </div>
                           <button className="cart-remove" onClick={() => removeFromCart(c.id)}>&#x2715;</button>
                         </li>
@@ -363,7 +368,9 @@ export default function Dashboard({ userEmail, onLogout }) {
                 <div className="view-row"><span>Name</span><strong>{modalState.product.name}</strong></div>
                 <div className="view-row"><span>Quantity</span><strong>{modalState.product.quantity}</strong></div>
                 <div className="view-row"><span>Stock</span><strong>{modalState.product.stock}</strong></div>
-                <div className="view-row"><span>Price</span><strong>₹{modalState.product.price.toFixed(2)}</strong></div>
+                <div className="view-row"><span>Regular Price</span><strong>₹{modalState.product.price.toFixed(2)}</strong></div>
+                <div className="view-row"><span>Discount</span><strong>{modalState.product.discount || 0}%</strong></div>
+                <div className="view-row"><span>Final Price</span><strong style={{color:'#667eea'}}>₹{finalPrice(modalState.product).toFixed(2)}</strong></div>
                 <div className="view-row"><span>Description</span><strong>{modalState.product.description}</strong></div>
                 <div className="modal-actions">
                   <button className="btn-secondary" onClick={closeModal}>Close</button>
@@ -376,7 +383,8 @@ export default function Dashboard({ userEmail, onLogout }) {
                   { label: 'Product Name', name: 'name', type: 'text', placeholder: 'e.g. Wireless Headphones' },
                   { label: 'Quantity', name: 'quantity', type: 'number', placeholder: 'e.g. 50' },
                   { label: 'Stock', name: 'stock', type: 'number', placeholder: 'e.g. 35' },
-                  { label: 'Price (₹)', name: 'price', type: 'number', placeholder: 'e.g. 79.99' },
+                  { label: 'Regular Price (₹)', name: 'price', type: 'number', placeholder: 'e.g. 79.99' },
+                  { label: 'Discount (%)', name: 'discount', type: 'number', placeholder: 'e.g. 10' },
                   { label: 'Image URL (optional)', name: 'image', type: 'text', placeholder: 'https://...' },
                 ].map(field => (
                   <div className="modal-field" key={field.name}>
@@ -385,7 +393,8 @@ export default function Dashboard({ userEmail, onLogout }) {
                       onChange={handleFormChange} placeholder={field.placeholder}
                       className={formErrors[field.name] ? 'input-error' : ''}
                       min={field.type === 'number' ? '0' : undefined}
-                      step={field.name === 'price' ? '0.01' : undefined} />
+                      max={field.name === 'discount' ? '100' : undefined}
+                      step={field.name === 'price' ? '0.01' : '1'} />
                     {formErrors[field.name] && <span className="error-msg">{formErrors[field.name]}</span>}
                   </div>
                 ))}
@@ -472,7 +481,7 @@ export default function Dashboard({ userEmail, onLogout }) {
                         {paymentModal.order.cart.map(c => (
                           <li key={c.id}>
                             <span>{c.name} × {c.qty}</span>
-                            <span>₹{(c.price * c.qty).toFixed(2)}</span>
+                            <span>₹{(c.cartPrice * c.qty).toFixed(2)}</span>
                           </li>
                         ))}
                       </ul>
@@ -574,7 +583,15 @@ function ProductsTab({ products, onAdd, onEdit, onView, onDelete, onAddToCart, o
             <div className="product-card-info">
               <div className="product-card-text">
                 <h3 className="product-card-name">{p.name}</h3>
-                <p className="product-card-price">₹{p.price.toFixed(2)}</p>
+                <div className="product-card-pricing">
+                  {p.discount > 0 && (
+                    <span className="price-regular">₹{p.price.toFixed(2)}</span>
+                  )}
+                  <span className="price-final">₹{finalPrice(p).toFixed(2)}</span>
+                  {p.discount > 0 && (
+                    <span className="price-discount-badge">-{p.discount}%</span>
+                  )}
+                </div>
               </div>
               <button className="card-delete-btn" onClick={() => onDelete(p.id)} title="Delete">🗑</button>
             </div>

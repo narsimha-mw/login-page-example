@@ -1,0 +1,44 @@
+To beow all steps
+
+1- Production section all producrts not a tables . it's show each product based on the page grid sprilt automatically in Crid view like as below
+   product image
+   prodct name
+   product price
+   prodct delete icon 
+   product add to cart icon in top right
+   when mouse over product image clear view 
+2- downlaod invoices pdf
+3- all orders downlaod as excel formate
+4- user can add bulk products using upload a file
+5 - E MyApp update to E-App
+6 - remove all section username along with domain name
+
+case 2:
+
+To beow all steps
+1- Production section view like as below Home care products images and complete BG show product image 
+   product image
+   prodct name
+   product price
+   prodct delete icon 
+   product add to cart icon in top right
+2 - once products added in cart -> view all products in cart place the order, once order palces automatical navigate to order section show product(order products only) level payment CTA , click then show payments options and add total amount. once paymnet done automatically invoices created.
+
+case 3:
+
+upload bulk products sample tempalte download 
+case 4:
+download pdf/excel action only add icon with color not text 
+case 5:
+ products added sample tempalte download file , when downlaod exisitng products are showing, expected not show each time added new and upload a file
+
+
+
+ Case 6: 
+
+ Order status
+ 1 - Pending-payment not yet
+ 2 - Cancle- payment cancle
+ 3 - Deliver - payment success
+ 4 - Action column "cancle not functionality remove"
+ 5 - products order more than 1 SKU droup donw show or view supporitate model 
