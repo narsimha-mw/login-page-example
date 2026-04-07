@@ -1,70 +1,135 @@
-# Getting Started with Create React App
+# E-App — React PWA Dashboard
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A full-featured e-commerce dashboard built with React. It includes secure login, product management, cart & order flow, invoicing, and payment tracking — all in a clean sidebar-driven UI.
 
-## Available Scripts
+**Live URL:** `http://localhost:3000`
+**Default credentials:** `Test@test.com` / `test@12345`
 
-In the project directory, you can run:
+---
 
-### `npm start`
+## Overview
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+E-App is a single-page React application that simulates an end-to-end B2C product management and ordering experience. It is designed for internal teams or business users to manage products, track orders, generate invoices, and view payment history — all from one dashboard.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+---
 
-### `npm test`
+## Features at a Glance
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+| Feature | Description |
+|---|---|
+| Secure Login | Email/password auth with show/hide toggle and error feedback |
+| Product Grid | Responsive card grid with full-background images and hover overlay |
+| Discount Pricing | Regular price (strikethrough) + discount % badge + final price |
+| Cart | Floating cart with item count badge, qty tracking, and total |
+| Order Flow | Cart → Place Order → Pay Now → Invoice auto-generated |
+| Bulk Upload | Import products via CSV/Excel file |
+| PDF Invoice | Download per-invoice PDF with company branding |
+| Excel Export | Download all orders as an `.xlsx` file |
+| Indian Locale | All prices in ₹ (Indian Rupee), profile set to Bangalore, India |
 
-### `npm run build`
+---
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Sections
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### 1. Login
+- Default credentials: `Test@test.com` / `test@12345`
+- Password must be 8–10 characters
+- Shows "Invalid credentials" banner on wrong login
+- Password visibility toggle (eye icon)
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### 2. Profile
+- Displays user avatar, email, and account stats (Orders, Amount Spent, Tier)
+- Shows member details: Phone (`+91 1234567890`), Location (`Bangalore, India`), Account Status
 
-### `npm run eject`
+### 3. Products
+- **Grid view** — auto-fill responsive card layout
+- Each card shows:
+  - Full-background product image with description + View/Edit overlay on hover
+  - Add to Cart button (top-right of image)
+  - Regular price with strikethrough, discount % badge, and final discounted price
+  - Delete button
+- **Add Product** — form modal with name, quantity, stock, regular price, discount %, image URL, description
+- **Edit Product** — pre-filled form modal
+- **View Product** — read-only detail view
+- **Bulk Upload** — upload CSV/Excel with columns: `name, quantity, stock, price, discount, description`
+- **Sample Template** — download a headers-only Excel template for bulk upload
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### 4. Orders
+- Lists all placed orders with Order ID, Date, Products, Items, Total, Status
+- Multi-SKU support: first product shown as tag; "+N more" opens a detail modal
+- **Pay Now** button appears for orders in `Pending Payment` status
+- **Download Excel** — exports all orders as `.xlsx`
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### 5. Invoices
+- Auto-generated after each successful payment
+- Shows Invoice ID, Order ID, Date, Amount, Status
+- **Download PDF** — generates a branded PDF invoice with E-App company details
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### 6. Payments
+- Records every payment transaction
+- Shows Payment ID, Date, Method, Amount, and Status (Success / Pending / Refunded)
+- Supports: Credit/Debit Card, UPI, Net Banking, Cash on Delivery
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+---
 
-## Learn More
+## Cart & Order Flow
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```
+Add to Cart → Cart Dropdown → Place Order
+    → Orders Tab (Pending Payment)
+        → Pay Now → Select Payment Method → Confirm
+            → Order: Delivered
+            → Invoice: auto-created (Paid)
+            → Payment: recorded (Success)
+                → View Invoice → Download PDF
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+> Final (discounted) price is used in cart, order total, invoice, and payment record.
 
-### Code Splitting
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## Tech Stack
 
-### Analyzing the Bundle Size
+| Library | Purpose |
+|---|---|
+| React (CRA) | UI framework |
+| jsPDF | PDF invoice generation |
+| SheetJS (xlsx) | Excel export and bulk CSV/Excel import |
+| CSS Grid | Responsive product card layout |
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+---
 
-### Making a Progressive Web App
+## Project Structure
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+```
+src/
+  components/
+    LoginPage.js      # Login form with validation
+    Dashboard.js      # Main dashboard — all tabs and logic
+    Dashboard.css     # All component styles
+    data.js           # Static seed data (products, orders, invoices, payments)
+```
 
-### Advanced Configuration
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+## Getting Started
 
-### Deployment
+```bash
+npm install
+npm start
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### `npm run build` fails to minify
+To create a production build:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+```bash
+npm run build
+```
+
+---
+
+## Repository
+
+GitHub: [narsimha-mw/React-MyApp_PWA](https://github.com/narsimha-mw/React-MyApp_PWA)
+Branch: `main`
